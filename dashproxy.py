@@ -209,19 +209,20 @@ class DashDownloader(HasLogger):
             self.download_template(initialization_template, rep)
 
         segments = copy.deepcopy(segment_timeline.findall('mpd:S', ns))
+        for segment in segment_timeline.findall('mpd:S', ns):
+            segment_timeline.remove(segment)
         idx = 0
         for segment in segments:
             duration = int( segment.attrib.get('d', '0') )
             repeat = int( segment.attrib.get('r', '0') )
-            idx = idx + 1
-            for _ in range(0, repeat):
-                elem = xml.etree.ElementTree.Element('{urn:mpeg:dash:schema:mpd:2011}S', attrib={'d':duration})
+            for _ in range(0, repeat + 1):
+                elem = xml.etree.ElementTree.Element('{urn:mpeg:dash:schema:mpd:2011}S', attrib={'d':duration, 'i':idx+1})
                 segment_timeline.insert(idx, elem)
-                self.verbose('appding a new elem')
+                self.verbose('appending a new elem')
                 idx = idx + 1
 
         media_template = segment_template.attrib.get('media', '')
-        nex_time = 0
+        next_time = 0
         for segment in segment_timeline.findall('mpd:S', ns):
             current_time = int(segment.attrib.get('t', '-1'))
             if current_time == -1:
@@ -238,19 +239,20 @@ class DashDownloader(HasLogger):
         r = requests.get(dest_url)
         if r.status_code >= 200 and r.status_code < 300:
             self.write(dest, r.content)
-
         else:
             self.error('cannot download %s server returned %d' % (dest_url, r.status_code))
 
     def render_template(self, template, representation=None, segment=None):
         template = template.replace('$RepresentationID$', '{representation_id}')
         template = template.replace('$Time$', '{time}')
+        template = template.replace('$Number%05d$', '{number}') # TODO printf format width: %0[width]d (ISO/IEC 23009-1:2014(E))
 
         args = {}
         if representation is not None:
             args['representation_id'] = representation.attrib.get('id', '')
         if segment is not None:
             args['time'] = segment.attrib.get('t', '')
+            args['number'] = segment.attrib.get('i', '')
 
         template = template.format(**args)
         return template
@@ -259,8 +261,11 @@ class DashDownloader(HasLogger):
         return self.mpd_base_url + dest # TODO remove hardcoded arrd
 
     def write(self, dest, content):
-        dest = dest[0:dest.rfind('?')]
+        dest = dest.split('?')[0]
         dest = os.path.join(self.proxy.output_dir, dest)
+        dest_dir = os.path.dirname(dest)
+        if not os.path.exists(dest_dir):
+            os.makedirs(dest_dir)
         f = open(dest, 'wb')
         f.write(content)
         f.close()
