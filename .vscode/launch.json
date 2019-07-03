@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "args": [
+        "https://host-66-220-3-82.contentfabric.io/q/hq__KtfSCsQHsG9ZrgYUHa6hjDeMcF7sUgqhXMYUJStbifKFYVH5nHiKuPST4QCRUP3To511G1DNLu/rep/playout/default/dash-widevine/dash.mpd?authorization=eyJxc3BhY2VfaWQiOiJpc3BjM0RhVURpdzFIVVBXbkNMRDdQcmZXSDNnNkpCSyIsInFsaWJfaWQiOiJpbGliMm1DN3JuUzd4NDhSU3BEOXhhNVFKTlczVlJKSCIsImFkZHIiOiIweDRFZDU3NWUwMGJGOTdmMDBlMjU4NzAxN2VEM0RjNDUzMENhMjI1RTQiLCJxaWQiOiJpcV9fMzVOWFhqWmd5U2d4amZhUFJ3eHJrYUJhVWRzQiIsImdyYW50IjoicmVhZCIsInR4X3JlcXVpcmVkIjpmYWxzZSwiaWF0IjoxNTYxNjEzOTU4LCJleHAiOjE1NjE3MDAzNTgsImF1dGhfc2lnIjoiRVMyNTZLXzRiZ0QyWkVpcGJHZ2JQa2QzVFF1NnBwOEdnM0NGMldKbXZkNGd5ZDIyVUd5TXpYcmFNWk5DUlNEMkRWeXhwRDdYRjRrSDVjTnpFNXJ4eHZkR04xYU5rTVRkIiwiYWZnaF9wayI6IiJ9.RVMyNTZLX0hGQUtEblhpQWV2eEZwczJ3ZFFIWHlSTEVuNWJtYUNBZlJ3NnpEOWtDYmNuVjhxNHF4OHBQRHNVUnVieU1zYjRLZ0xQVmJUb3ZoMU50dkpkZms5SmFlUk4z",
+        "-o",
+        "out"
+      ]
+    }
+  ]
+}
