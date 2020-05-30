@@ -306,6 +306,7 @@ class DashDownloader(HasLogger):
         template = template.replace(
             "$Number%05d$", "{number}"
         )  # TODO printf format width: %0[width]d (ISO/IEC 23009-1:2014(E))
+        template = template.replace("$Number$", "{number}")
 
         args = {}
         if representation is not None:
