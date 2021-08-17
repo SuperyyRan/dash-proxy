@@ -140,6 +140,7 @@ class DashProxy(HasLogger):
             time.sleep(after)
 
         r = requests.get(self.mpd)
+        print(r.text)
         if r.status_code < 200 or r.status_code >= 300:
             logger.log(
                 logging.WARNING,
@@ -150,6 +151,7 @@ class DashProxy(HasLogger):
 
         xml.etree.ElementTree.register_namespace("", ns["mpd"])
         mpd = xml.etree.ElementTree.fromstring(r.text)
+        print(mpd)
         self.handle_mpd(mpd)
 
     def get_base_url(self, mpd):
@@ -176,6 +178,7 @@ class DashProxy(HasLogger):
             logging.VERBOSE, "Found %d periods choosing the 1st one" % (len(periods),)
         )
         period = periods[0]
+        print(period.findall("mpd:AdaptationSet", ns))
         for as_idx, adaptation_set in enumerate(
             period.findall("mpd:AdaptationSet", ns)
         ):  
@@ -187,6 +190,8 @@ class DashProxy(HasLogger):
                     % (representation.attrib.get("id", "UKN"),)
                 )
                 rep_addr = RepAddr(0, as_idx, rep_idx)
+                print("AS_idx is %s and Rep_idx is %s" % (as_idx, rep_idx))
+                print(rep_addr)
                 self.ensure_downloader(mpd, rep_addr)
 
         self.write_output_mpd(original_mpd)
@@ -203,6 +208,7 @@ class DashProxy(HasLogger):
             self.verbose("A downloader for %s already started" % (rep_addr,))
         else:
             self.info("Starting a downloader for %s" % (rep_addr,))
+            print("Representation address is %s" % rep_addr)
             downloader = DashDownloader(self, rep_addr)
             self.downloaders[rep_addr] = downloader
             downloader.handle_mpd(mpd, self.get_base_url(mpd))
@@ -245,48 +251,54 @@ class DashDownloader(HasLogger):
             )
 
     def handle_mpd(self, mpd, base_url):
+        print("base url %s " % base_url)
         self.mpd_base_url = base_url
         self.mpd = MpdLocator(mpd)
         rep = self.mpd.representation(self.rep_addr)
         segment_template = self.mpd.segment_template(self.rep_addr)
+        print(rep.attrib)
 
         if segment_template is None:
             self.download_single(self.rep_addr)
             return
 
         segment_timeline = self.mpd.segment_timeline(self.rep_addr)
+        print(segment_timeline)
 
         initialization_template = segment_template.attrib.get("initialization", "")
+        print(initialization_template)
         if initialization_template and not self.initialization_downloaded:
             self.initialization_downloaded = True
             self.download_template(initialization_template, rep)
-
-        segments = copy.deepcopy(segment_timeline.findall("mpd:S", ns))
-        for segment in segment_timeline.findall("mpd:S", ns):
-            segment_timeline.remove(segment)
-        idx = 0
-        for segment in segments:
-            duration = int(segment.attrib.get("d", "0"))
-            repeat = int(segment.attrib.get("r", "0"))
-            for _ in range(0, repeat + 1):
-                elem = xml.etree.ElementTree.Element(
-                    "{urn:mpeg:dash:schema:mpd:2011}S",
-                    attrib={"d": duration, "i": idx + 1},
-                )
-                segment_timeline.insert(idx, elem)
-                self.verbose("appending a new elem")
-                idx = idx + 1
+        
+        if segment_timeline is not None:
+            segments = copy.deepcopy(segment_timeline.findall("mpd:S", ns))
+            for segment in segment_timeline.findall("mpd:S", ns):
+                segment_timeline.remove(segment)
+            idx = 0
+            for segment in segments:
+                duration = int(segment.attrib.get("d", "0"))
+                repeat = int(segment.attrib.get("r", "0"))
+                for _ in range(0, repeat + 1):
+                    elem = xml.etree.ElementTree.Element(
+                        "{urn:mpeg:dash:schema:mpd:2011}S",
+                        attrib={"d": duration, "i": idx + 1},
+                    )
+                    segment_timeline.insert(idx, elem)
+                    self.verbose("appending a new elem")
+                    idx = idx + 1
 
         media_template = segment_template.attrib.get("media", "")
         next_time = 0
-        for segment in segment_timeline.findall("mpd:S", ns):
-            current_time = int(segment.attrib.get("t", "-1"))
-            if current_time == -1:
-                segment.attrib["t"] = next_time
-            else:
-                next_time = current_time
-            next_time += int(segment.attrib.get("d", "0"))
-            self.download_template(media_template, rep, segment)
+        if segment_timeline is not None:
+            for segment in segment_timeline.findall("mpd:S", ns):
+                current_time = int(segment.attrib.get("t", "-1"))
+                if current_time == -1:
+                    segment.attrib["t"] = next_time
+                else:
+                    next_time = current_time
+                next_time += int(segment.attrib.get("d", "0"))
+                self.download_template(media_template, rep, segment)
 
     def download_template(self, template, representation=None, segment=None):
         dest = self.render_template(template, representation, segment)
@@ -303,6 +315,7 @@ class DashDownloader(HasLogger):
     def render_template(self, template, representation=None, segment=None):
         template = template.replace("$RepresentationID$", "{representation_id}")
         template = template.replace("$Time$", "{time}")
+        template = template.replace("$Bandwidth$", "{representation_bandwidth}")
         template = template.replace(
             "$Number%05d$", "{number}"
         )  # TODO printf format width: %0[width]d (ISO/IEC 23009-1:2014(E))
@@ -311,6 +324,7 @@ class DashDownloader(HasLogger):
         args = {}
         if representation is not None:
             args["representation_id"] = representation.attrib.get("id", "")
+            args["representation_bandwidth"] = representation.attrib.get("bandwidth", "")
         if segment is not None:
             args["time"] = segment.attrib.get("t", "")
             args["number"] = segment.attrib.get("i", "")
